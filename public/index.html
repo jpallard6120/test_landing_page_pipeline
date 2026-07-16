@@ -229,6 +229,60 @@
     line-height: 1.5;
   }
 
+  .testimonials {
+    padding: 80px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 48px;
+  }
+  .testimonials-head {
+    text-align: center;
+    max-width: 600px;
+  }
+  .testimonials-head p {
+    font-size: 17px;
+    color: var(--text-muted);
+    margin: 0;
+  }
+  .quote-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    max-width: 900px;
+    width: 100%;
+  }
+  @media (max-width: 780px) {
+    .quote-grid { grid-template-columns: 1fr; }
+  }
+  .quote-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .quote-text {
+    font-size: 17px;
+    line-height: 1.55;
+    margin: 0;
+  }
+  .quote-author {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .quote-name {
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .quote-role {
+    font-size: 14px;
+    color: var(--text-faint);
+  }
+
   .cta-section {
     padding: 100px 24px;
     text-align: center;
@@ -312,6 +366,29 @@
       <div class="feature-icon">🔔</div>
       <div class="feature-title">Alerts</div>
       <div class="feature-desc">Get notified the moment something needs your attention.</div>
+    </div>
+  </div>
+</section>
+
+<section class="testimonials">
+  <div class="testimonials-head">
+    <h2>Loved by shipping teams</h2>
+    <p>Here's what our customers have to say.</p>
+  </div>
+  <div class="quote-grid">
+    <div class="quote-card">
+      <p class="quote-text">"Voyage replaced three tools and a mountain of spreadsheets. Our release cycle went from chaos to something we actually trust."</p>
+      <div class="quote-author">
+        <span class="quote-name">Maya Chen</span>
+        <span class="quote-role">VP Engineering, Northwind</span>
+      </div>
+    </div>
+    <div class="quote-card">
+      <p class="quote-text">"The launch tracking alone paid for itself in the first month. We finally know what's shipping and when — no more Slack archaeology."</p>
+      <div class="quote-author">
+        <span class="quote-name">Diego Ramos</span>
+        <span class="quote-role">Product Lead, Fathom Labs</span>
+      </div>
     </div>
   </div>
 </section>

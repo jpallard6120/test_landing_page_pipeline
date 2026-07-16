@@ -1,0 +1,7 @@
+{
+  "name": "test-landing-page-pipeline",
+  "compatibility_date": "2026-07-16",
+  "assets": {
+    "directory": "./public"
+  }
+}

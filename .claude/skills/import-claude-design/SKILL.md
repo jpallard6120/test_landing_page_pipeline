@@ -113,14 +113,14 @@ and no dependency on `window.React`.
 
 ## 6. Commit & deploy
 
-- Work on the repo's designated feature branch; do not push to `main`/default
-  without explicit permission.
+- This project deploys from `main`, so commit and push the compiled output
+  directly to `main` — no feature branch or pull request is needed.
 - Commit with a message that names the source design project, e.g.
   `Import <page> from Claude Design project "<name>"`.
-- `git push -u origin <branch>` (retry with backoff on network errors).
-- Do **not** open a pull request unless the user explicitly asks.
-- Wrangler will deploy the `public/` contents; mention the deploy path in your
-  summary.
+- `git push origin HEAD:main` (retry with backoff on network errors). If `main`
+  has moved, `git pull --rebase origin main` first, then push.
+- Wrangler deploys the `public/` contents on push to `main`; mention the deploy
+  path in your summary.
 
 ## Security
 

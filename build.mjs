@@ -111,7 +111,7 @@ function render(tpl, scope) {
 // ---------- head assembly ----------
 const firstText = (html, re) => {
   const m = re.exec(html);
-  return m ? m[1].replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim() : null;
+  return m ? m[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : null;
 };
 
 function buildHead(origHead, helmetInner, bodyHtml) {
@@ -139,10 +139,15 @@ function compile(src) {
   if (!xdc) throw new Error(`${src}: no <x-dc> root found — not a DC component?`);
   let template = xdc[1];
 
-  // helmet -> head; remove from template
+  // helmet -> head; remove from template. Design-system helmets often inject a
+  // runtime <script> (e.g. ds-base.js) — strip those; a static page carries no
+  // runtime. Keep helmet styles/links/meta.
   let helmetInner = '';
   const helmet = /<helmet[^>]*>([\s\S]*?)<\/helmet>/i.exec(template);
-  if (helmet) { helmetInner = helmet[1]; template = template.replace(helmet[0], ''); }
+  if (helmet) {
+    helmetInner = helmet[1].replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
+    template = template.replace(helmet[0], '');
+  }
 
   const scriptM = /<script[^>]*\bdata-dc-script\b[^>]*>([\s\S]*?)<\/script>/i.exec(doc);
   const propsAttr = scriptM ? attrOf(scriptM[0], 'data-props') : null;
@@ -169,7 +174,7 @@ ${body}
 `;
 
   // ---------- self-check: nothing runtime-y may survive ----------
-  const leak = /x-dc|sc-for|sc-if|\{\{|<helmet|support\.js|data-dc/i.exec(html);
+  const leak = /x-dc|sc-for|sc-if|\{\{|<helmet|support\.js|data-dc|<script/i.exec(html);
   if (leak) throw new Error(`${src}: compiled output still contains runtime scaffolding ("${leak[0]}")`);
   return html;
 }

@@ -16,7 +16,7 @@ This repo is a **Cloudflare static-asset pipeline** (`wrangler.jsonc` →
 2. Fetch the source (+ any assets) and store it unmodified in `design/`.
 3. Run the deterministic build (`npm run build` / `node build.mjs`) → `public/`.
    *(If the build fails loudly, fall back to LLM translation — see below.)*
-4. Preview the compiled result inline.
+4. Preview the compiled result as an Artifact (renders in the web UI).
 5. **Wait for the user's explicit "ship it" approval.**
 6. On approval, push to `main` (Cloudflare deploys `public/`).
 
@@ -145,14 +145,29 @@ does, do **not** ship partial output. Instead compile that file **by hand**:
 Then tell the user which construct wasn't supported, so `build.mjs` can be
 extended later.
 
-## Step 4–5. Preview, then get approval
+## Step 4–5. Preview as an Artifact, then get approval
 
-- Render the compiled `public/index.html` with **`SendUserFile`
-  (`display: "render"`)** so the user sees the real deployable bytes inline.
-- Flag preview-only caveats (e.g. an asset that failed to fetch, or externally
-  hosted fonts/images the inline preview may not load but production will).
-- **Stop and ask for explicit approval to ship** ("push this to `main`?"). Do not
-  push before the user says yes.
+Show the rendered page as an **Artifact** so it appears in the Claude Code web
+UI for approval:
+
+1. Build the self-contained preview fragment:
+   ```
+   node scripts/make-preview.mjs public/index.html <scratch>/preview.html
+   ```
+   `make-preview.mjs` emits body-only content with every asset inlined as a
+   `data:` URI — required because the Artifact tool supplies its own
+   `<!doctype>/<head>/<body>` skeleton and runs under a strict CSP (no external
+   hosts, no sibling files).
+2. Publish it with the **`Artifact`** tool (`file_path` = the fragment; set a
+   `title`, one-line `description`, and a `favicon`). It renders in the web UI.
+   Re-publishing the same file path in this conversation keeps the same URL.
+3. Flag preview-only caveats (e.g. a dropped runtime webfont that falls back to
+   system fonts; any asset that failed to fetch).
+4. **Stop and ask for explicit approval to ship** ("push this to `main`?"). Do
+   not push before the user says yes.
+
+(Fallback: if the Artifact tool is unavailable, `SendUserFile` with
+`display: "render"` on `public/index.html` also renders inline.)
 
 ## Step 6. Push to `main` (explicit standing authorization)
 

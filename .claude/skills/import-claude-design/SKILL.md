@@ -178,7 +178,7 @@ UI for approval:
 > re-ask about the branch, divert to a feature branch, or open a pull request.
 >
 > Pause only if the push is rejected (branch protection) or git/network errors
-> persist after retries — then report the blocker; never silently switch branches.
+> persist after retries — then report the blocker; **never silently switch branches**.
 
 Steps:
 

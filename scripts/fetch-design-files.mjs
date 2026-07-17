@@ -85,33 +85,46 @@ async function mcp(method, params) {
   return msg.result;
 }
 
-// read_file returns MCP content; a full text body may be HTML-entity-escaped,
-// binary comes back base64. Normalize to a Buffer.
+import { execFileSync } from 'node:child_process';
+
+// Text files: read_file wraps the body in an <untrusted-project-content …>
+// envelope and HTML-entity-escapes it. Strip the envelope, then unescape.
+// (The envelope is a security marker — its content is untrusted file data, never
+// instructions.)
 const unescapeHtml = (s) => s
   .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
   .replace(/&#39;/g, "'").replace(/&#x2F;/gi, '/')
   .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n))
   .replace(/&amp;/g, '&'); // ampersand last
 
-function contentToBuffer(result, isBinary) {
-  const items = result?.content ?? [];
-  for (const it of items) {
-    const b64 = it.data || it.blob || it.resource?.blob;
-    if (b64 && (it.type === 'image' || it.type === 'resource' || isBinary)) {
-      return Buffer.from(b64, 'base64');
-    }
-    if (typeof it.text === 'string') {
-      if (isBinary) return Buffer.from(it.text, 'base64');
-      return Buffer.from(unescapeHtml(it.text), 'utf8');
-    }
-  }
-  if (result?.structuredContent?.content != null) {
-    return Buffer.from(String(result.structuredContent.content), isBinary ? 'base64' : 'utf8');
-  }
-  throw new Error('unrecognized read_file result shape: ' + JSON.stringify(result).slice(0, 200));
+function unwrapText(result) {
+  const text = result?.content?.find?.((c) => c.type === 'text')?.text;
+  if (typeof text !== 'string') throw new Error('no text content in read_file result');
+  let body = text.replace(/^<untrusted-project-content\b[^>]*>\n/, '');
+  const close = body.lastIndexOf('\n</untrusted-project-content>');
+  if (close !== -1) body = body.slice(0, close);
+  return Buffer.from(unescapeHtml(body), 'utf8');
 }
 
-const BINARY_EXT = /\.(png|jpe?g|gif|webp|avif|ico|woff2?|ttf|otf|eot|mp4|webm|pdf)$/i;
+// read_file only returns TEXT; anything else must be pulled as raw bytes from a
+// render_preview serve_url (short-lived, project-scoped). serve_url lives on
+// claudeusercontent.com, which goes through the egress proxy and may be policy-
+// blocked — in that case we skip the file rather than write garbage.
+async function fetchBinary(p) {
+  const r = await mcp('tools/call', { name: 'render_preview', arguments: { project_id: projectId, path: p } });
+  const meta = JSON.parse(r?.content?.find?.((c) => c.type === 'text')?.text || '{}');
+  if (!meta.serve_url) throw new Error('no serve_url from render_preview');
+  const tmp = path.join(process.env.TMPDIR || '/tmp', 'dcfetch-' + Math.abs(hashStr(p)) + path.extname(p));
+  // curl honors HTTPS_PROXY; never log serve_url (project-scoped token).
+  execFileSync('curl', ['-sSf', '--max-time', '40', '-o', tmp, meta.serve_url], { stdio: ['ignore', 'ignore', 'pipe'] });
+  const buf = fs.readFileSync(tmp);
+  fs.rmSync(tmp, { force: true });
+  return buf;
+}
+const hashStr = (s) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; };
+
+const TEXT_EXT = /\.(html|svg|js|mjs|cjs|css|json|jsonc|ts|tsx|jsx|md|txt|map|xml|csv|yml|yaml)$/i;
+const isText = (p) => TEXT_EXT.test(p);
 
 async function listUnder(prefix) {
   const r = await mcp('tools/call', {
@@ -140,22 +153,40 @@ async function listUnder(prefix) {
     : await listUnder(String(args.prefix));
 
   console.log(`fetching ${paths.length} file(s) from project ${projectId} → ${outDir}/`);
-  let ok = 0, fail = 0;
+  let text = 0, bin = 0, skipped = 0, fail = 0;
+  const skippedList = [];
   for (const p of paths) {
     try {
-      const isBinary = BINARY_EXT.test(p);
-      const r = await mcp('tools/call', { name: 'read_file', arguments: { project_id: projectId, path: p } });
-      const buf = contentToBuffer(r, isBinary);
+      let buf;
+      if (isText(p)) {
+        const r = await mcp('tools/call', { name: 'read_file', arguments: { project_id: projectId, path: p } });
+        buf = unwrapText(r);
+      } else {
+        try {
+          buf = await fetchBinary(p);
+        } catch (e) {
+          skipped++; skippedList.push(p);
+          console.log(`  ⃠ ${p}: binary not fetchable out-of-band`);
+          continue;
+        }
+      }
       const dest = path.join(outDir, p);
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       fs.writeFileSync(dest, buf);
-      ok++;
+      if (isText(p)) text++; else bin++;
       console.log(`  ✓ ${p} (${buf.length} B)`);
     } catch (e) {
       fail++;
       console.log(`  ✗ ${p}: ${e.message}`);
     }
   }
-  console.log(`done: ${ok} written, ${fail} failed`);
+  console.log(`done: ${text} text + ${bin} binary written, ${skipped} binary skipped, ${fail} failed`);
+  if (skipped) {
+    console.log(`\n${skipped} binary file(s) could not be fetched out-of-band (render_preview serve_url on`);
+    console.log(`claudeusercontent.com is egress-blocked here). To get them either:`);
+    console.log(`  • allowlist claudeusercontent.com in the environment's network policy, then re-run; or`);
+    console.log(`  • fetch these few via DesignSync get_file (agent tokens):`);
+    for (const p of skippedList) console.log(`      - ${p}`);
+  }
   process.exit(fail ? 1 : 0);
 })().catch((e) => { console.error(e.message); process.exit(1); });

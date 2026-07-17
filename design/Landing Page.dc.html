@@ -1,17 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ship your product with confidence</title>
-<meta name="description" content="Voyage gives your team the tools to plan, launch, and track releases — without the spreadsheets and Slack chaos.">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
 <style>
   body { margin: 0; }
   a { color: #2563eb; }
   a:hover { color: #1d4ed8; }
 </style>
-</head>
-<body>
+</helmet>
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; background: #ffffff;">
 
   <header style="display: flex; align-items: center; justify-content: space-between; padding: 20px 48px; border-bottom: 1px solid #eee;">
@@ -40,25 +42,13 @@
       <p style="font-size: 17px; color: #555; margin: 0;">Three tools, one workflow.</p>
     </div>
     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 1080px; width: 100%;">
-      
+      <sc-for list="{{ features }}" as="f" hint-placeholder-count="3">
         <div style="background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 32px; display: flex; flex-direction: column; gap: 12px;">
-          <div style="width: 40px; height: 40px; border-radius: 8px; background: #eef2ff; display: flex; align-items: center; justify-content: center; font-size: 20px;">🚀</div>
-          <div style="font-size: 18px; font-weight: 600;">Launch tracking</div>
-          <div style="font-size: 15px; color: #555; line-height: 1.5;">Plan releases and track progress across every team in one place.</div>
+          <div style="width: 40px; height: 40px; border-radius: 8px; background: #eef2ff; display: flex; align-items: center; justify-content: center; font-size: 20px;">{{ f.icon }}</div>
+          <div style="font-size: 18px; font-weight: 600;">{{ f.title }}</div>
+          <div style="font-size: 15px; color: #555; line-height: 1.5;">{{ f.desc }}</div>
         </div>
-      
-        <div style="background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 32px; display: flex; flex-direction: column; gap: 12px;">
-          <div style="width: 40px; height: 40px; border-radius: 8px; background: #eef2ff; display: flex; align-items: center; justify-content: center; font-size: 20px;">📊</div>
-          <div style="font-size: 18px; font-weight: 600;">Analytics</div>
-          <div style="font-size: 15px; color: #555; line-height: 1.5;">See how your launches perform with real-time dashboards.</div>
-        </div>
-      
-        <div style="background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 32px; display: flex; flex-direction: column; gap: 12px;">
-          <div style="width: 40px; height: 40px; border-radius: 8px; background: #eef2ff; display: flex; align-items: center; justify-content: center; font-size: 20px;">🔔</div>
-          <div style="font-size: 18px; font-weight: 600;">Alerts</div>
-          <div style="font-size: 15px; color: #555; line-height: 1.5;">Get notified the moment something needs your attention.</div>
-        </div>
-      
+      </sc-for>
     </div>
   </section>
 
@@ -93,5 +83,20 @@
   </footer>
 
 </div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      features: [
+        { icon: '🚀', title: 'Launch tracking', desc: 'Plan releases and track progress across every team in one place.' },
+        { icon: '📊', title: 'Analytics', desc: 'See how your launches perform with real-time dashboards.' },
+        { icon: '🔔', title: 'Alerts', desc: 'Get notified the moment something needs your attention.' },
+      ],
+    };
+  }
+}
+</script>
 </body>
 </html>

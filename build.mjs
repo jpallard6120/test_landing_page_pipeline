@@ -193,3 +193,14 @@ const html = compile(src);
 fs.mkdirSync(path.dirname(outArg), { recursive: true });
 fs.writeFileSync(outArg, html);
 console.log(`✓ compiled ${src} -> ${outArg} (${html.length} bytes)`);
+
+// Design-system templates ship images in a sibling assets/ dir next to the
+// .dc.html. Copy it into the output dir so the page's relative asset refs
+// (assets/..., ./assets/..., /assets/...) all resolve once deployed. No-op for
+// self-contained pages (Case 1) that have no assets/ dir.
+const srcAssets = path.join(path.dirname(src), 'assets');
+if (fs.existsSync(srcAssets) && fs.statSync(srcAssets).isDirectory()) {
+  const outAssets = path.join(path.dirname(outArg), 'assets');
+  fs.cpSync(srcAssets, outAssets, { recursive: true });
+  console.log(`  ↳ copied assets/ (${fs.readdirSync(srcAssets).length} entries) -> ${outAssets}`);
+}

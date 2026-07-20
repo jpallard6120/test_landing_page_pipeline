@@ -33,7 +33,50 @@ Key pieces:
 - **`scripts/fetch-design-files.mjs`** — bulk-downloads a design project's files
   directly from the Claude Design MCP HTTP API, out of the agent loop, so
   fetching asset-heavy templates costs no model tokens.
+- **`scripts/sync.mjs`** — one-shot, agent-free: fetch the current design +
+  `build.mjs` into `public/`, driven by `design.config.json`.
+- **`.github/workflows/design-autodeploy.yml`** — scheduled CI that runs the sync
+  and deploys — the whole loop with **no Claude Code involved**.
 - **`public/`** — the compiled output that actually deploys.
+
+## Automatic re-deploy from Claude Design — no Claude Code
+
+Because the fetch and build are fully deterministic and scriptable, the site can
+re-deploy itself whenever the Claude Design source changes, with **no agent in
+the loop**. `.github/workflows/design-autodeploy.yml` does this:
+
+1. **Schedule** — runs hourly (and on-demand via *Run workflow*). Adjust the
+   `cron` in the workflow.
+2. **Sync** — `node scripts/sync.mjs` reads `design.config.json`
+   (`projectId` + `fetchPrefix` + `template` + `out`), pulls the current design
+   via the Claude Design MCP HTTP API (`scripts/fetch-design-files.mjs`), and
+   compiles it (`build.mjs`) into `public/`.
+3. **Change detection = git.** An unchanged design compiles to byte-identical
+   output, so there's no diff and nothing happens. When the design *did* change,
+   the workflow commits the rebuilt site to `main`.
+4. **Deploy** — Cloudflare deploys from `main`. (If this is a Workers-Assets
+   project deployed with Wrangler rather than Pages' git integration, set the
+   `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` secrets and the workflow's
+   optional Wrangler step runs `wrangler deploy` too.)
+
+Run the same thing locally with `node scripts/sync.mjs`.
+
+### Required secret: `DESIGN_MCP_TOKEN`
+
+The workflow authenticates to the design API with a repo **Actions secret**
+`DESIGN_MCP_TOKEN` — an OAuth token whose account has the `agent_design_projects`
+consent (see the design-sync consent note below). Provision it once from
+`/design-login`, store it as a secret, and the loop runs unattended.
+
+> **Caveat — token lifetime.** These OAuth tokens can expire. If the design API
+> starts returning `401`, refresh `DESIGN_MCP_TOKEN`. A long-lived / refreshable
+> credential is the one piece that needs a durable answer for a truly
+> set-and-forget loop; short-lived tokens require periodic rotation.
+
+> **Egress note.** GitHub-hosted runners have open internet, so `api.anthropic.com`
+> and the `claudeusercontent.com` asset URLs are reachable there without any
+> allowlist — the custom allowlist below is only for this repo's restricted
+> Claude Code environment.
 
 ## Network allowlist
 

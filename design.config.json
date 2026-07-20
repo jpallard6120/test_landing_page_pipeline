@@ -1,0 +1,6 @@
+{
+  "projectId": "cf17f6ad-ac73-4145-82db-a504390fa1a7",
+  "fetchPrefix": "templates/partnerstack-landing",
+  "template": "design/templates/partnerstack-landing/PartnerstackLanding.dc.html",
+  "out": "public/index.html"
+}

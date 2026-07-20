@@ -1,0 +1,70 @@
+name: Design auto-deploy
+
+# Automatic re-deploy from Claude Design state — NO Claude Code / no agent.
+# On a schedule (and on demand), pull the current design via the Claude Design
+# MCP HTTP API, run the deterministic build, and if the output changed, commit to
+# main. Cloudflare deploys from main. Change detection is git itself: an unchanged
+# design compiles to byte-identical output → no diff → no commit → no deploy.
+
+on:
+  schedule:
+    - cron: '0 * * * *'      # hourly (UTC). Adjust cadence as needed.
+  workflow_dispatch: {}       # manual "Run workflow" button
+
+permissions:
+  contents: write             # push the rebuilt site to main
+
+concurrency:
+  group: design-autodeploy
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Pull design files (out-of-band, direct MCP API) + deterministic build.
+      # build.mjs and the fetch script are zero-dependency, so no `npm install`.
+      # GitHub-hosted runners have open egress, so api.anthropic.com and
+      # claudeusercontent.com (binary asset serve_urls) are reachable — the
+      # custom allowlist in the README is only for this project's restricted
+      # Claude Code environment, not for CI.
+      - name: Sync from Claude Design and build
+        env:
+          DESIGN_MCP_TOKEN: ${{ secrets.DESIGN_MCP_TOKEN }}
+        run: node scripts/sync.mjs
+
+      - name: Commit rebuilt site to main if it changed
+        run: |
+          git config user.name  "design-autodeploy[bot]"
+          git config user.email "growth@pixelunion.net"
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No change in Claude Design — nothing to deploy."
+            exit 0
+          fi
+          git add -A
+          git commit -m "Auto-deploy: sync from Claude Design"
+          git push origin HEAD:main
+
+      # OPTIONAL: if the site is a Workers Assets project deployed with wrangler
+      # (rather than Cloudflare Pages' git integration, which auto-deploys on the
+      # push above), set CLOUDFLARE_API_TOKEN (and CLOUDFLARE_ACCOUNT_ID) secrets
+      # to deploy here too. No-op when the secret is absent.
+      - name: Deploy with Wrangler (optional)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "No CLOUDFLARE_API_TOKEN set — relying on Cloudflare git integration (deploys from main)."
+            exit 0
+          fi
+          npx --yes wrangler@latest deploy

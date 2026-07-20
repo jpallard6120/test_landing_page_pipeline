@@ -3,7 +3,7 @@
   "compatibility_date": "2026-07-16",
   "assets": {
     "directory": "./public"
-  }
+  },
   "observability": {
     "enabled": false,
     "head_sampling_rate": 1,
